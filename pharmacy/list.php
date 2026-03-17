@@ -53,6 +53,10 @@ $result = $conn->query("SELECT * FROM drug ORDER BY name ASC");
     <div class="alert alert-success">Drug added successfully!</div>
 <?php endif; ?>
 
+<?php if(isset($_GET['success']) && $_GET['success'] == 2): ?>
+    <div class="alert alert-success">Drug updated successfully!</div>
+<?php endif; ?>
+
 <?php if(isset($_GET['deleted'])): ?>
     <div class="alert alert-success">Drug deleted successfully!</div>
 <?php endif; ?>
