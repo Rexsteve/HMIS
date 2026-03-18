@@ -236,7 +236,7 @@ if($role == 'admin' || $role == 'cashier') {
     <?php endif; ?>
 
     <div class="text-center mt-5 text-muted">
-        <small>© 2025 Hospital Management Information System</small>
+        <small>© 2026 Hospital Management Information System</small>
     </div>
 
 </div>
