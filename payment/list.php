@@ -54,8 +54,8 @@ $payments = mysqli_query($conn,
             <td><?= $row['payment_method'] ?></td>
             <td><?= date('d M Y H:i', strtotime($row['payment_date'])) ?></td>
             <td>
-                <a href="../invoice/list.php?invoice_id=<?= $row['invoice_id'] ?>" 
-                   class="btn btn-sm btn-info">View</a>
+                <a href="view.php?payment_id=<?= $row['payment_id'] ?>" 
+                class="btn btn-sm btn-info">View</a>
             </td>
         </tr>
         <?php endwhile; ?>
