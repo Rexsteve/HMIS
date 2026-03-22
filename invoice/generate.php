@@ -109,6 +109,9 @@ if(isset($_POST['generate'])) {
                         <a href="../invoice/list.php" class="btn btn-secondary w-100 mt-2">
                             Invoice List
                         </a>
+                        <a href="../dashboard.php" class="btn btn-secondary w-100 mt-2">
+                            Dashboard
+                        </a>
 
                     </form>
 
