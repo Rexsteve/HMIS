@@ -1,4 +1,9 @@
 <?php
+
+echo "ROLE: " . $_SESSION['role'] . "<br>";
+echo "DOCTOR_ID: " . $_SESSION['doctor_id'] . "<br>";
+exit;
+
 session_start();
 include "../config/db.php";
 
@@ -13,34 +18,68 @@ if($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'doctor') {
     exit();
 }
 
-/* Fetch only Pending appointments */
-$appointments = $conn->query("
-    SELECT appointment.appointment_id,
-           patient.name AS patient_name,
-           doctor.name AS doctor_name
-    FROM appointment
-    JOIN patient ON appointment.patient_id = patient.patient_id
-    JOIN doctor ON appointment.doctor_id = doctor.doctor_id
-    WHERE appointment.status = 'Pending'
-    ORDER BY appointment.appointment_date DESC
-");
+$role = $_SESSION['role'];
+$session_doctor_id = isset($_SESSION['doctor_id']) ? intval($_SESSION['doctor_id']) : 0;
+
+/* ✅ Fetch appointments */
+if($role == 'doctor') {
+    // Doctor sees ONLY their appointments
+    $appointments = $conn->query("
+        SELECT appointment.appointment_id,
+               patient.name AS patient_name,
+               doctor.name AS doctor_name
+        FROM appointment
+        JOIN patient ON appointment.patient_id = patient.patient_id
+        JOIN doctor ON appointment.doctor_id = doctor.doctor_id
+        WHERE appointment.status = 'pending'
+        AND appointment.doctor_id = $session_doctor_id
+        ORDER BY appointment.appointment_date DESC
+    ");
+} else {
+    // Admin sees all
+    $appointments = $conn->query("
+        SELECT appointment.appointment_id,
+               patient.name AS patient_name,
+               doctor.name AS doctor_name
+        FROM appointment
+        JOIN patient ON appointment.patient_id = patient.patient_id
+        JOIN doctor ON appointment.doctor_id = doctor.doctor_id
+        WHERE appointment.status = 'pending'
+        ORDER BY appointment.appointment_date DESC
+    ");
+}
 
 if(isset($_POST['submit'])) {
 
-    $appointment_id = $_POST['appointment_id'];
+    $appointment_id = intval($_POST['appointment_id']);
     $diagnosis = $_POST['diagnosis'];
     $treatment = $_POST['treatment'];
 
-    $sql = "INSERT INTO consultation (appointment_id, diagnosis, treatment)
-            VALUES (?, ?, ?)";
+    /* ✅ Get correct doctor_id */
+    if($role == 'doctor') {
+        // Doctor uses their own ID
+        $doctor_id = $session_doctor_id;
+    } else {
+        // Admin → fetch doctor from appointment
+        $stmt = $conn->prepare("SELECT doctor_id FROM appointment WHERE appointment_id = ?");
+        $stmt->bind_param("i", $appointment_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $row = $res->fetch_assoc();
+        $doctor_id = $row['doctor_id'];
+    }
+
+    /* ✅ Insert consultation WITH doctor_id */
+    $sql = "INSERT INTO consultation (appointment_id, doctor_id, diagnosis, treatment)
+            VALUES (?, ?, ?, ?)";
 
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("iss", $appointment_id, $diagnosis, $treatment);
+    $stmt->bind_param("iiss", $appointment_id, $doctor_id, $diagnosis, $treatment);
 
     if($stmt->execute()) {
 
-        // 🔥 Automatically mark appointment as Completed
-        $update = $conn->prepare("UPDATE appointment SET status = 'Completed' WHERE appointment_id = ?");
+        // ✅ Mark appointment as completed
+        $update = $conn->prepare("UPDATE appointment SET status = 'completed' WHERE appointment_id = ?");
         $update->bind_param("i", $appointment_id);
         $update->execute();
 
@@ -63,21 +102,13 @@ if(isset($_POST['submit'])) {
 
 <h3>Add Consultation</h3>
 
-<!-- Navigation -->
 <div class="mb-3">
-    <a href="../dashboard.php" class="btn btn-secondary">
-        ← Back to Dashboard
-    </a>
-
-    <a href="list.php" class="btn btn-dark">
-        ← Back to Consultations
-    </a>
+    <a href="../dashboard.php" class="btn btn-secondary">← Back to Dashboard</a>
+    <a href="list.php" class="btn btn-dark">← Back to Consultations</a>
 </div>
 
 <?php if(isset($error)): ?>
-    <div class="alert alert-danger">
-        <?= $error ?>
-    </div>
+    <div class="alert alert-danger"><?= $error ?></div>
 <?php endif; ?>
 
 <form method="POST" class="card p-4" style="max-width:700px;">

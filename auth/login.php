@@ -5,12 +5,14 @@ include "../config/db.php";
 $error = '';
 
 if(isset($_POST['login'])) {
+
     $username = mysqli_real_escape_string($conn, $_POST['username']);
     $password = $_POST['password'];
     
     $query = mysqli_query($conn, "SELECT * FROM users WHERE username='$username'");
     
     if(mysqli_num_rows($query) == 1) {
+
         $user = mysqli_fetch_assoc($query);
 
         if(password_verify($password, $user['password'])) {
@@ -20,6 +22,9 @@ if(isset($_POST['login'])) {
             $_SESSION['username'] = $user['username'];
             $_SESSION['role'] = $user['role'];
 
+            // ✅ Default doctor_id (important)
+            $_SESSION['doctor_id'] = 0;
+
             // ✅ If user is a doctor, get doctor_id
             if($user['role'] == 'doctor') {
 
@@ -27,10 +32,10 @@ if(isset($_POST['login'])) {
                 $stmt->bind_param("i", $user['user_id']);
                 $stmt->execute();
                 $result = $stmt->get_result();
-                $doctor = $result->fetch_assoc();
 
-                if($doctor) {
-                    $_SESSION['doctor_id'] = $doctor['doctor_id'];
+                if($result && $result->num_rows > 0) {
+                    $doctor = $result->fetch_assoc();
+                    $_SESSION['doctor_id'] = (int)$doctor['doctor_id'];
                 }
             }
 

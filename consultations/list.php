@@ -17,7 +17,7 @@ $role = $_SESSION['role'];
 /* ✅ Get doctor_id safely */
 $doctor_id = isset($_SESSION['doctor_id']) ? intval($_SESSION['doctor_id']) : 0;
 
-/* ✅ Base query */
+/* ✅ Base query (now uses consultation.doctor_id) */
 $sql = "
 SELECT consultation.*,
        patient.name AS patient_name,
@@ -25,12 +25,12 @@ SELECT consultation.*,
 FROM consultation
 JOIN appointment ON consultation.appointment_id = appointment.appointment_id
 JOIN patient ON appointment.patient_id = patient.patient_id
-JOIN doctor ON appointment.doctor_id = doctor.doctor_id
+JOIN doctor ON consultation.doctor_id = doctor.doctor_id
 ";
 
-/* ✅ Apply filter only if doctor and valid ID */
+/* ✅ Filter consultations for logged-in doctor */
 if($role == 'doctor' && $doctor_id > 0) {
-    $sql .= " WHERE appointment.doctor_id = $doctor_id ";
+    $sql .= " WHERE consultation.doctor_id = $doctor_id ";
 }
 
 $sql .= " ORDER BY consultation.created_at DESC";
