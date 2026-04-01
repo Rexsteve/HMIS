@@ -12,7 +12,7 @@ if(!isset($_GET['id'])) {
     exit();
 }
 
-$patient_id = $_GET['id'];
+$patient_id = intval($_GET['id']);
 
 /* Fetch patient data */
 $result = $conn->query("SELECT * FROM patient WHERE patient_id=$patient_id");
@@ -27,20 +27,30 @@ $patient = $result->fetch_assoc();
 /* Update patient */
 if(isset($_POST['update'])){
 
-    $name = $_POST['name'];
-    $gender = $_POST['gender'];
+    $name = mysqli_real_escape_string($conn, $_POST['name']);
+    $gender = mysqli_real_escape_string($conn, $_POST['gender']);
     $dob = $_POST['dob'];
-    $contact = $_POST['contact'];
-    $address = $_POST['address'];
+    $contact = mysqli_real_escape_string($conn, $_POST['contact']);
+    $address = mysqli_real_escape_string($conn, $_POST['address']);
+
+    /* NEW CLINICAL FIELDS */
+    $weight = !empty($_POST['weight']) ? floatval($_POST['weight']) : null;
+    $height = !empty($_POST['height']) ? floatval($_POST['height']) : null;
+    $blood_group = mysqli_real_escape_string($conn, $_POST['blood_group']);
+    $allergies = mysqli_real_escape_string($conn, $_POST['allergies']);
 
     $conn->query("
         UPDATE patient 
         SET 
-        name='$name',
-        gender='$gender',
-        dob='$dob',
-        contact='$contact',
-        address='$address'
+            name='$name',
+            gender='$gender',
+            dob='$dob',
+            contact='$contact',
+            address='$address',
+            weight=" . ($weight !== null ? $weight : "NULL") . ",
+            height=" . ($height !== null ? $height : "NULL") . ",
+            blood_group='$blood_group',
+            allergies='$allergies'
         WHERE patient_id=$patient_id
     ");
 
@@ -66,20 +76,15 @@ if(isset($_POST['update'])){
 
 <div class="mb-3">
 <label>Name</label>
-<input type="text" name="name" class="form-control" 
+<input type="text" name="name" class="form-control"
 value="<?= $patient['name']; ?>" required>
 </div>
 
 <div class="mb-3">
 <label>Gender</label>
 <select name="gender" class="form-control">
-
-<option value="Male" 
-<?= $patient['gender']=='Male' ? 'selected':'' ?>>Male</option>
-
-<option value="Female" 
-<?= $patient['gender']=='Female' ? 'selected':'' ?>>Female</option>
-
+    <option value="Male" <?= $patient['gender']=='Male' ? 'selected':'' ?>>Male</option>
+    <option value="Female" <?= $patient['gender']=='Female' ? 'selected':'' ?>>Female</option>
 </select>
 </div>
 
@@ -98,6 +103,41 @@ value="<?= $patient['contact']; ?>">
 <div class="mb-3">
 <label>Address</label>
 <textarea name="address" class="form-control"><?= $patient['address']; ?></textarea>
+</div>
+
+<!-- NEW CLINICAL FIELDS -->
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <label>Weight (kg)</label>
+        <input type="number" step="0.1" name="weight" class="form-control"
+        value="<?= $patient['weight'] ?? '' ?>">
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <label>Height (cm)</label>
+        <input type="number" step="0.1" name="height" class="form-control"
+        value="<?= $patient['height'] ?? '' ?>">
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <label>Blood Group</label>
+        <select name="blood_group" class="form-control">
+            <option value="">-- Select --</option>
+            <?php
+            $groups = ["A+","A-","B+","B-","AB+","AB-","O+","O-"];
+            foreach($groups as $g){
+                $selected = ($patient['blood_group'] == $g) ? "selected" : "";
+                echo "<option value='$g' $selected>$g</option>";
+            }
+            ?>
+        </select>
+    </div>
+</div>
+
+<div class="mb-3">
+<label>Allergies</label>
+<textarea name="allergies" class="form-control" placeholder="e.g. Penicillin, peanuts"><?= $patient['allergies'] ?? '' ?></textarea>
 </div>
 
 <button type="submit" name="update" class="btn btn-primary">

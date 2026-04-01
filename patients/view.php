@@ -12,10 +12,23 @@ if(!isset($_GET['id'])) {
     exit();
 }
 
-$patient_id = $_GET['id'];
+$patient_id = intval($_GET['id']);
 
 /* Get Patient Details */
-$patient = $conn->query("SELECT * FROM patient WHERE patient_id=$patient_id")->fetch_assoc();
+$patient = $conn->query("
+    SELECT * 
+    FROM patient 
+    WHERE patient_id=$patient_id
+")->fetch_assoc();
+
+/* Calculate BMI (if data exists) */
+$bmi = null;
+if(!empty($patient['weight']) && !empty($patient['height'])) {
+    $height_m = $patient['height'] / 100; // assuming height in cm
+    if($height_m > 0) {
+        $bmi = $patient['weight'] / ($height_m * $height_m);
+    }
+}
 
 /* Get Medical History (Consultations) */
 $history = $conn->query("
@@ -38,6 +51,7 @@ ORDER BY c.consultation_date DESC
 <title>Patient Profile</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
+
 <body class="p-4">
 
 <a href="list.php" class="btn btn-secondary mb-3">← Back</a>
@@ -69,13 +83,48 @@ ORDER BY c.consultation_date DESC
 <td><b>Address</b></td>
 <td><?= $patient['address']; ?></td>
 </tr>
-</table>
 
+<!-- NEW CLINICAL FIELDS -->
+<tr>
+<td><b>Weight</b></td>
+<td>
+    <?= !empty($patient['weight']) ? $patient['weight'] . " kg" : "Not recorded"; ?>
+</td>
+</tr>
+
+<tr>
+<td><b>Height</b></td>
+<td>
+    <?= !empty($patient['height']) ? $patient['height'] . " cm" : "Not recorded"; ?>
+</td>
+</tr>
+
+<tr>
+<td><b>BMI</b></td>
+<td>
+    <?= $bmi ? number_format($bmi, 1) : "N/A"; ?>
+</td>
+</tr>
+
+<tr>
+<td><b>Blood Group</b></td>
+<td>
+    <?= !empty($patient['blood_group']) ? $patient['blood_group'] : "Not recorded"; ?>
+</td>
+</tr>
+
+<tr>
+<td><b>Allergies</b></td>
+<td>
+    <?= !empty($patient['allergies']) ? $patient['allergies'] : "None recorded"; ?>
+</td>
+</tr>
+
+</table>
 
 <h3 class="mt-4">Medical History</h3>
 
 <table class="table table-bordered">
-
 <tr>
 <th>Date</th>
 <th>Diagnosis</th>
@@ -85,23 +134,19 @@ ORDER BY c.consultation_date DESC
 
 <?php if($history->num_rows > 0): ?>
 
-<?php while($row = $history->fetch_assoc()): ?>
-
-<tr>
-<td><?= $row['consultation_date']; ?></td>
-<td><?= $row['diagnosis']; ?></td>
-<td><?= $row['treatment']; ?></td>
-<td><?= $row['notes']; ?></td>
-</tr>
-
-<?php endwhile; ?>
+    <?php while($row = $history->fetch_assoc()): ?>
+    <tr>
+        <td><?= $row['consultation_date']; ?></td>
+        <td><?= $row['diagnosis']; ?></td>
+        <td><?= $row['treatment']; ?></td>
+        <td><?= $row['notes']; ?></td>
+    </tr>
+    <?php endwhile; ?>
 
 <?php else: ?>
-
 <tr>
-<td colspan="4" class="text-center">No medical history found</td>
+    <td colspan="4" class="text-center">No medical history found</td>
 </tr>
-
 <?php endif; ?>
 
 </table>

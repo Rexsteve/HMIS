@@ -21,11 +21,30 @@ if(isset($_POST['submit'])) {
     $contact = $_POST['contact'];
     $address = $_POST['address'];
 
-    $sql = "INSERT INTO patient (name, gender, dob, contact, address)
-            VALUES (?, ?, ?, ?, ?)";
+    /* NEW CLINICAL FIELDS */
+    $weight = !empty($_POST['weight']) ? $_POST['weight'] : null;
+    $height = !empty($_POST['height']) ? $_POST['height'] : null;
+    $blood_group = $_POST['blood_group'];
+    $allergies = $_POST['allergies'];
+
+    $sql = "INSERT INTO patient 
+        (name, gender, dob, contact, address, weight, height, blood_group, allergies)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("sssss", $name, $gender, $dob, $contact, $address);
+
+    $stmt->bind_param(
+        "sssssddss",
+        $name,
+        $gender,
+        $dob,
+        $contact,
+        $address,
+        $weight,
+        $height,
+        $blood_group,
+        $allergies
+    );
 
     if($stmt->execute()) {
         header("Location: list.php?success=1");
@@ -48,13 +67,8 @@ if(isset($_POST['submit'])) {
 
 <!-- Navigation Buttons -->
 <div class="mb-3">
-    <a href="../dashboard.php" class="btn btn-secondary">
-        ← Back to Dashboard
-    </a>
-
-    <a href="list.php" class="btn btn-dark">
-        ← Back to Patient List
-    </a>
+    <a href="../dashboard.php" class="btn btn-secondary">← Back to Dashboard</a>
+    <a href="list.php" class="btn btn-dark">← Back to Patient List</a>
 </div>
 
 <?php if(isset($error)): ?>
@@ -63,7 +77,7 @@ if(isset($_POST['submit'])) {
     </div>
 <?php endif; ?>
 
-<form method="POST" class="card p-4" style="max-width:600px;">
+<form method="POST" class="card p-4" style="max-width:700px;">
 
     <div class="mb-3">
         <label class="form-label">Full Name</label>
@@ -91,6 +105,39 @@ if(isset($_POST['submit'])) {
     <div class="mb-3">
         <label class="form-label">Address</label>
         <input type="text" name="address" class="form-control">
+    </div>
+
+    <!-- NEW CLINICAL VITALS -->
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Weight (kg)</label>
+            <input type="number" step="0.1" name="weight" class="form-control">
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Height (cm)</label>
+            <input type="number" step="0.1" name="height" class="form-control">
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Blood Group</label>
+            <select name="blood_group" class="form-select">
+                <option value="">-- Select --</option>
+                <option>A+</option>
+                <option>A-</option>
+                <option>B+</option>
+                <option>B-</option>
+                <option>AB+</option>
+                <option>AB-</option>
+                <option>O+</option>
+                <option>O-</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Allergies</label>
+        <textarea name="allergies" class="form-control" placeholder="e.g. Penicillin, peanuts"></textarea>
     </div>
 
     <button type="submit" name="submit" class="btn btn-success">
