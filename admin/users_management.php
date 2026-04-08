@@ -80,6 +80,9 @@ $rejected = $conn->query("SELECT * FROM users WHERE status='rejected' ORDER BY u
 
     <h2>🏥 Hospital User Management</h2>
     <p style="color:#666;">Control system access and approvals</p>
+    <a href="../dashboard.php" class="btn btn-secondary">
+        ← Back to Dashboard
+    </a>
 
     <!-- Tabs -->
     <div class="mt-3">

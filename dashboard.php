@@ -12,21 +12,19 @@ $role = $_SESSION['role'];
 $username = $_SESSION['username'];
 $user_id = $_SESSION['user_id'];
 
-/* ✅ Get doctor_id if user is a doctor */
+/* Doctor ID */
 $doctor_id = 0;
-
 if($role === 'doctor') {
     $stmt = $conn->prepare("SELECT doctor_id FROM doctor WHERE user_id = ?");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
     $res = $stmt->get_result();
-
     if($row = $res->fetch_assoc()) {
         $doctor_id = $row['doctor_id'];
     }
 }
 
-/* Helper function */
+/* Helper */
 function getValue($conn, $query, $field) {
     $result = mysqli_query($conn, $query);
     if($result && mysqli_num_rows($result) > 0) {
@@ -35,255 +33,207 @@ function getValue($conn, $query, $field) {
     return 0;
 }
 
-/* Default values */
-$total_patients = 0;
-$total_doctors = 0;
+/* Stats */
+$total_patients = ($role=='admin' || $role=='receptionist') 
+    ? getValue($conn,"SELECT COUNT(*) as count FROM patient","count") : 0;
+
+$total_doctors = ($role=='admin') 
+    ? getValue($conn,"SELECT COUNT(*) as count FROM doctor","count") : 0;
+
 $today_appointments = 0;
-$low_stock = 0;
-$today_payments = 0;
 
-/* Patients */
-if($role == 'admin' || $role == 'receptionist') {
-    $total_patients = getValue($conn, "SELECT COUNT(*) as count FROM patient", "count");
-}
-
-/* Doctors */
-if($role == 'admin') {
-    $total_doctors = getValue($conn, "SELECT COUNT(*) as count FROM doctor", "count");
-}
-
-/* Appointments */
-if($role == 'admin') {
+if($role=='admin'){
     $today_appointments = getValue($conn,
-        "SELECT COUNT(*) as count FROM appointment WHERE appointment_date = CURDATE()", "count");
+        "SELECT COUNT(*) as count FROM appointment WHERE appointment_date=CURDATE()","count");
 }
-elseif($role == 'doctor' && $doctor_id > 0) {
-    $stmt = $conn->prepare("
-        SELECT COUNT(*) as count 
-        FROM appointment 
-        WHERE appointment_date = CURDATE()
-        AND doctor_id = ?
-    ");
-    $stmt->bind_param("i", $doctor_id);
+elseif($role=='doctor' && $doctor_id>0){
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM appointment WHERE appointment_date=CURDATE() AND doctor_id=?");
+    $stmt->bind_param("i",$doctor_id);
     $stmt->execute();
-    $res = $stmt->get_result()->fetch_assoc();
-    $today_appointments = $res['count'];
+    $today_appointments = $stmt->get_result()->fetch_assoc()['count'];
 }
 
-/* Pharmacy */
-if($role == 'admin' || $role == 'pharmacist') {
-    $low_stock = getValue($conn,
-        "SELECT COUNT(*) as count FROM drug WHERE quantity < 10", "count");
-}
+$low_stock = ($role=='admin' || $role=='pharmacist')
+    ? getValue($conn,"SELECT COUNT(*) as count FROM drug WHERE quantity<10","count") : 0;
 
-/* Payments */
-if($role == 'admin' || $role == 'cashier') {
-    $today_payments = getValue($conn,
-        "SELECT COALESCE(SUM(amount_paid),0) as total 
-         FROM payment 
-         WHERE DATE(payment_date) = CURDATE()", "total");
-}
+$today_payments = ($role=='admin' || $role=='cashier')
+    ? getValue($conn,"SELECT COALESCE(SUM(amount_paid),0) as total FROM payment WHERE DATE(payment_date)=CURDATE()","total") : 0;
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dashboard - HMIS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+<title>HMIS Dashboard</title>
 
-    <style>
-        body{background:#f4f6f9;}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
-        .sidebar{
-            position:fixed;
-            width:240px;
-            height:100vh;
-            background:#2f3542;
-            padding-top:20px;
-            display:flex;
-            flex-direction:column;
-            overflow-y:auto;
-        }
+<style>
+body{background:#f1f5f9;font-family:'Segoe UI';}
 
-        .sidebar a{
-            color:#dfe4ea;
-            padding:12px 20px;
-            display:block;
-            text-decoration:none;
-        }
+/* Sidebar */
+.sidebar{
+    position:fixed;
+    width:250px;
+    height:100vh;
+    background:#0f172a;
+    padding:20px;
+    color:white;
+}
 
-        .sidebar a:hover,
-        .sidebar .active{
-            background:#57606f;
-            color:#fff;
-        }
+.sidebar h4{
+    font-weight:700;
+    margin-bottom:20px;
+}
 
-        .main-content{
-            margin-left:240px;
-            padding:20px;
-        }
+.sidebar a{
+    display:block;
+    padding:12px;
+    color:#cbd5e1;
+    text-decoration:none;
+    border-radius:10px;
+    margin-bottom:6px;
+}
 
-        .card-stat{
-            border-left:5px solid #007bff;
-        }
+.sidebar a:hover{
+    background:#1e293b;
+    color:white;
+}
 
-        .sidebar-footer{
-            margin-top:auto;
-        }
-    </style>
+/* Main */
+.main{
+    margin-left:250px;
+    padding:25px;
+}
+
+/* Header */
+.header{
+    background:linear-gradient(90deg,#2563eb,#4f46e5);
+    color:white;
+    padding:20px;
+    border-radius:16px;
+    display:flex;
+    justify-content:space-between;
+}
+
+/* Cards */
+.cardx{
+    background:white;
+    padding:20px;
+    border-radius:16px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.05);
+}
+
+.big{
+    font-size:26px;
+    font-weight:700;
+}
+</style>
 </head>
+
 <body>
 
-<!-- Sidebar -->
+<!-- SIDEBAR -->
 <div class="sidebar">
+    <h4>🏥 HMIS</h4>
 
-    <h4 class="text-center text-white mb-4">
-        <i class="bi bi-hospital"></i> HMIS
-    </h4>
+    <a href="dashboard.php"><i class="bi bi-speedometer2"></i> Dashboard</a>
 
-    <div class="flex-grow-1">
+    <?php if($role=='admin' || $role=='receptionist'): ?>
+        <a href="patients/list.php"><i class="bi bi-people"></i> Patients</a>
+        <a href="appointments/list.php"><i class="bi bi-calendar-check"></i> Appointments</a>
+    <?php endif; ?>
 
-        <a href="dashboard.php" class="active">
-            <i class="bi bi-speedometer2"></i> Dashboard
-        </a>
+    <?php if($role=='doctor'): ?>
+        <a href="appointments/list.php"><i class="bi bi-calendar-check"></i> My Appointments</a>
+        <a href="consultations/list.php"><i class="bi bi-chat-dots"></i> My Consultations</a>
+    <?php endif; ?>
 
-        <?php if($role == 'admin' || $role == 'receptionist'): ?>
-            <a href="patients/list.php"><i class="bi bi-people"></i> Patients</a>
-            <a href="appointments/list.php"><i class="bi bi-calendar-check"></i> Appointments</a>
-        <?php endif; ?>
+    <?php if($role=='pharmacist'): ?>
+        <a href="pharmacy/list.php"><i class="bi bi-capsule"></i> Pharmacy</a>
+    <?php endif; ?>
 
-        <?php if($role == 'admin' || $role == 'doctor'): ?>
-            <a href="consultations/list.php"><i class="bi bi-chat-dots"></i> Consultations</a>
-        <?php endif; ?>
+    <?php if($role=='cashier'): ?>
+        <a href="billing/list.php"><i class="bi bi-receipt"></i> Billing</a>
+        <a href="invoice/list.php"><i class="bi bi-file-earmark-text"></i> Invoices</a>
+        <a href="payment/list.php"><i class="bi bi-credit-card"></i> Payments</a>
+        <a href="reports/index.php"><i class="bi bi-bar-chart"></i> Reports</a>
+    <?php endif; ?>
 
-        <?php if($role == 'admin' || $role == 'pharmacist'): ?>
-            <a href="pharmacy/list.php"><i class="bi bi-capsule"></i> Pharmacy</a>
-        <?php endif; ?>
+    <?php if($role=='admin'): ?>
+        <hr style="border-color:#334155">
 
-        <?php if($role == 'admin' || $role == 'cashier'): ?>
-            <a href="billing/list.php"><i class="bi bi-receipt"></i> Billing</a>
-            <a href="invoice/list.php"><i class="bi bi-file-earmark-text"></i> Invoices</a>
-            <a href="invoice/generate.php"><i class="bi bi-plus-square"></i> Generate Invoice</a>
-            <a href="payment/list.php"><i class="bi bi-credit-card"></i> Payments</a>
-        <?php endif; ?>
+        <a href="doctors/list.php"><i class="bi bi-person-badge"></i> Doctors</a>
+        <a href="reports/index.php"><i class="bi bi-bar-chart"></i> Reports</a>
 
-        <?php if($role == 'admin'): ?>
-            <a href="doctors/list.php"><i class="bi bi-person-badge"></i> Doctors</a>
-            <a href="reports/index.php"><i class="bi bi-bar-chart"></i> Reports</a>
-        <?php endif; ?>
+        <a href="admin/users_all.php"><i class="bi bi-people-fill"></i> All Users</a>
+        <a href="admin/users_management.php"><i class="bi bi-gear"></i> Manage Users</a>
+    <?php endif; ?>
 
-    </div>
-
-    <div class="sidebar-footer">
-        <hr class="text-white">
-        <a href="auth/logout.php" class="text-danger">
-            <i class="bi bi-box-arrow-right"></i> Logout
-        </a>
-    </div>
-
+    <a href="auth/logout.php" style="color:#f87171;">
+        <i class="bi bi-box-arrow-right"></i> Logout
+    </a>
 </div>
 
-<!-- Main Content -->
-<div class="main-content">
+<!-- MAIN -->
+<div class="main">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4>Dashboard</h4>
+    <div class="header">
         <div>
-            Welcome, <strong><?= $username ?></strong>
-            (<?= ucfirst($role) ?>)
+            <h5>Welcome, <?= $username ?></h5>
+            <small><?= ucfirst($role) ?> Panel</small>
         </div>
     </div>
 
-    <div class="row">
+    <br>
 
-        <?php if($role == 'admin' || $role == 'receptionist'): ?>
+    <div class="row g-3">
+
+        <?php if($total_patients): ?>
         <div class="col-md-3">
-            <div class="card p-3 card-stat">
-                <h6>Total Patients</h6>
-                <h3><?= $total_patients ?></h3>
+            <div class="cardx">
+                <div class="big"><?= $total_patients ?></div>
+                <small>Patients</small>
             </div>
         </div>
         <?php endif; ?>
 
-        <?php if($role == 'admin'): ?>
+        <?php if($total_doctors): ?>
         <div class="col-md-3">
-            <div class="card p-3 card-stat">
-                <h6>Total Doctors</h6>
-                <h3><?= $total_doctors ?></h3>
+            <div class="cardx">
+                <div class="big"><?= $total_doctors ?></div>
+                <small>Doctors</small>
             </div>
         </div>
         <?php endif; ?>
 
-        <?php if($role == 'admin' || $role == 'doctor'): ?>
+        <?php if($today_appointments): ?>
         <div class="col-md-3">
-            <div class="card p-3 card-stat">
-                <h6>Today's Appointments</h6>
-                <h3><?= $today_appointments ?></h3>
+            <div class="cardx">
+                <div class="big"><?= $today_appointments ?></div>
+                <small>Today's Appointments</small>
             </div>
         </div>
         <?php endif; ?>
 
-        <?php if($role == 'admin' || $role == 'pharmacist'): ?>
+        <?php if($low_stock): ?>
         <div class="col-md-3">
-            <div class="card p-3 card-stat">
-                <h6>Low Stock Drugs</h6>
-                <h3><?= $low_stock ?></h3>
+            <div class="cardx">
+                <div class="big"><?= $low_stock ?></div>
+                <small>Low Stock</small>
             </div>
         </div>
         <?php endif; ?>
 
-    </div>
-
-    <?php if($role == 'admin' || $role == 'cashier'): ?>
-    <div class="card mt-4 p-4">
-        <h5>Today's Payments</h5>
-        <h2 class="text-success">
-            Ksh <?= number_format($today_payments, 2) ?>
-        </h2>
-    </div>
-    <?php endif; ?>
-
-    <?php if($role == 'admin' || $role == 'cashier'): ?>
-    <div class="card mt-4 p-4">
-        <h5>Recent Unpaid Invoices</h5>
-
-        <?php
-        $recent_invoices = mysqli_query($conn,
-            "SELECT i.*, p.name as patient_name
-             FROM invoice i
-             JOIN patient p ON i.patient_id = p.patient_id
-             WHERE i.status = 'unpaid'
-             ORDER BY i.created_at DESC
-             LIMIT 5");
-        ?>
-
-        <?php if($recent_invoices && mysqli_num_rows($recent_invoices) > 0): ?>
-            <table class="table table-bordered">
-                <tr>
-                    <th>#</th>
-                    <th>Patient</th>
-                    <th>Amount</th>
-                    <th>Date</th>
-                </tr>
-                <?php while($row = mysqli_fetch_assoc($recent_invoices)): ?>
-                <tr>
-                    <td><?= $row['invoice_id'] ?></td>
-                    <td><?= $row['patient_name'] ?></td>
-                    <td>Ksh <?= number_format($row['total_amount'],2) ?></td>
-                    <td><?= date('d M Y', strtotime($row['created_at'])) ?></td>
-                </tr>
-                <?php endwhile; ?>
-            </table>
-        <?php else: ?>
-            <p class="text-muted">No unpaid invoices.</p>
+        <?php if($today_payments): ?>
+        <div class="col-md-3">
+            <div class="cardx">
+                <div class="big">Ksh <?= number_format($today_payments) ?></div>
+                <small>Today's Payments</small>
+            </div>
+        </div>
         <?php endif; ?>
 
-    </div>
-    <?php endif; ?>
-
-    <div class="text-center mt-5 text-muted">
-        <small>© 2026 Hospital Management Information System</small>
     </div>
 
 </div>

@@ -15,15 +15,40 @@ if($_SESSION['role'] != 'admin' &&
     exit();
 }
 
-$sql = "SELECT appointment.*, 
+$role = $_SESSION['role'];
+$doctor_id = $_SESSION['doctor_id'] ?? 0;
+
+/* =========================
+   ROLE-BASED QUERY
+========================= */
+if($role == 'doctor') {
+
+    $stmt = $conn->prepare("
+        SELECT appointment.*, 
                patient.name AS patient_name, 
                doctor.name AS doctor_name
         FROM appointment
         JOIN patient ON appointment.patient_id = patient.patient_id
         JOIN doctor ON appointment.doctor_id = doctor.doctor_id
-        ORDER BY appointment.appointment_date DESC, appointment.appointment_time DESC";
+        WHERE appointment.doctor_id = ?
+        ORDER BY appointment.appointment_date DESC, appointment.appointment_time DESC
+    ");
+    $stmt->bind_param("i", $doctor_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-$result = $conn->query($sql);
+} else {
+
+    $sql = "SELECT appointment.*, 
+                   patient.name AS patient_name, 
+                   doctor.name AS doctor_name
+            FROM appointment
+            JOIN patient ON appointment.patient_id = patient.patient_id
+            JOIN doctor ON appointment.doctor_id = doctor.doctor_id
+            ORDER BY appointment.appointment_date DESC, appointment.appointment_time DESC";
+
+    $result = $conn->query($sql);
+}
 ?>
 
 <!DOCTYPE html>
@@ -42,7 +67,7 @@ $result = $conn->query($sql);
         ← Back to Dashboard
     </a>
 
-    <?php if($_SESSION['role'] == 'admin' || $_SESSION['role'] == 'receptionist'): ?>
+    <?php if($role == 'admin' || $role == 'receptionist'): ?>
         <a href="add.php" class="btn btn-primary">
             + Book New Appointment
         </a>
@@ -70,7 +95,7 @@ $result = $conn->query($sql);
     </thead>
     <tbody>
 
-    <?php if($result->num_rows > 0): ?>
+    <?php if($result && $result->num_rows > 0): ?>
         <?php while($row = $result->fetch_assoc()): ?>
         <tr>
             <td><?= $row['appointment_id']; ?></td>
@@ -91,7 +116,7 @@ $result = $conn->query($sql);
                 <a href="view.php?id=<?= $row['appointment_id']; ?>" 
                    class="btn btn-sm btn-info">View</a>
 
-                <?php if($_SESSION['role'] != 'doctor'): ?>
+                <?php if($role != 'doctor'): ?>
                     <a href="edit.php?id=<?= $row['appointment_id']; ?>" 
                        class="btn btn-sm btn-warning">Edit</a>
                 <?php endif; ?>
